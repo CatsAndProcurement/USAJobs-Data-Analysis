@@ -1,0 +1,101 @@
+# -*- coding: utf-8 -*-
+"""
+
+Created on Mon Nov 16 17:59:51 2020
+
+@author: CatsAndProcurement
+
+The purpose of this script is to show people how to use Python to access 
+data on jobs posted to USAJobs.gov, the U.S. government's central hiring 
+website for most non-political positions.
+
+USAJobs.gov is run by the Office of Personnel Management (OPM), which is 
+basically the U.S. government's HR department.
+
+To use this script (or to extract bulk data from USAJobs.gov in general) you 
+will need an application program interface (API) key. You can request an API 
+key from OPM via the following link:
+https://developer.usajobs.gov/APIRequest/Index
+
+After you have your API key, to run this script you'll need to enter it 
+(along with the email you used to obtain it) in the sections below with 
+the variables labeled 'API_email' and 'API_key'.
+
+"""
+
+# Pandas allows easy dataframe analysis:
+import pandas as pd
+# OS allows us to figure out Windows drive location info:
+import os
+# Requests lets us make API calls to USAJobs.gov:
+import requests
+# JavaScript Object Notation (JSON) data analysis:
+import json
+
+# These 3 variables are required to make an API call to USAJobs.gov
+# To run this script you'll need to get an API key from OPM and copy/paste 
+# your personal info below.
+API_host = 'data.usajobs.gov'
+# Add your email here (the one you used to request an API key from OPM):
+API_email = 'INSERT YOUR EMAIL HERE'
+# Add your API key here:
+API_key = 'INSERT YOUR API KEY HERE'
+
+# Identifies the location of the Python script on your hard drive:
+script_location = os.getcwd()
+
+# Creates the URL for an API call requesting data on contracting jobs
+# (USAJobs occupational code '1102') posted by the General Services 
+# Administration (GSA, USAJobs organization code 'GS')
+# You can replace these codes with any others that you prefer, see links 
+# below for raw data with occupation and organization codes:
+# https://data.usajobs.gov/api/codelist/occupationalseries
+# https://data.usajobs.gov/api/codelist/agencysubelements
+API_URL = ('https://data.usajobs.gov/api/search?'+
+           'JobCategoryCode=1102'+
+           '&Organization=GS')
+
+# Builds header terms to include in API call:
+API_head = {'Host':API_host,'User-Agent':API_email,'Authorization-Key':API_key}
+
+# Requests data from USAJobs.gov via web API call:
+API_req = requests.get(API_URL,headers=API_head)
+
+# Writes the API call data into a JSON dictionary
+raw_data = API_req.json()
+
+# Converts JSON data dictionary into a Pandas dataframe:
+df = pd.DataFrame.from_dict(raw_data)
+
+# Saves the dataframe as a TXT file in case we need it later:
+df.to_json('USAJobs data.txt')
+
+# Determines how many job postings our API call has located:
+n_len = len(raw_data['SearchResult']['SearchResultItems'])
+
+# Lets you know how many job postings your search found:
+print('\nYour search found '+str(n_len)+' job notices posted to USAJobs. '+
+      'See below a list of job titles, agencies, pay grades, and other info.\n')
+
+# This is a loop that cycles through all the jobs your search found:
+for n_loop in range(0,n_len):
+    # This 'try' command is the first part of an error handler for the loop:
+    try:
+        # These lines of code extract specific data elements from the API call
+        # Pulls out each job posting's unique identifier:
+        print('Position ID: '+raw_data['SearchResult']['SearchResultItems'][n_loop]['MatchedObjectDescriptor']['PositionID'])
+        # Pulls out each job posting's department and agency:
+        print('Agency: '+raw_data['SearchResult']['SearchResultItems'][n_loop]['MatchedObjectDescriptor']['DepartmentName']+
+              ' ('+raw_data['SearchResult']['SearchResultItems'][n_loop]['MatchedObjectDescriptor']['OrganizationName']+')')
+        # Pulls out each job posting's job title:
+        print('Job title: '+raw_data['SearchResult']['SearchResultItems'][n_loop]['MatchedObjectDescriptor']['PositionTitle'])
+        # Pulls out each job posting's schedule and grade (e.g. GS-11, GS-12, etc.)
+        print('Pay grade: '+raw_data['SearchResult']['SearchResultItems'][n_loop]['MatchedObjectDescriptor']['JobGrade'][0]['Code']+
+              '-'+raw_data['SearchResult']['SearchResultItems'][n_loop]['MatchedObjectDescriptor']['UserArea']['Details']['HighGrade'])
+        # Pulls out a link you can use to view each job posting in-browser:
+        print('Link to online job posting: \n'+raw_data['SearchResult']['SearchResultItems'][n_loop]['MatchedObjectDescriptor']['PositionURI'])
+        print('\n')
+    # This 'except' command simply ignores a job posting if there's an error:
+    except:
+        pass
+
